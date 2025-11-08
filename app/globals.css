@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet CSS */
+@import 'leaflet/dist/leaflet.css';
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer utilities {
+  .text-shadow-glow {
+    text-shadow: 0 0 10px rgba(255, 107, 53, 0.7);
+  }
+  
+  .halloween-gradient {
+    background: linear-gradient(135deg, #FF6B35 0%, #8B5CF6 100%);
+  }
+  
+  .halloween-border {
+    border: 2px solid;
+    border-image: linear-gradient(135deg, #FF6B35, #8B5CF6, #10B981) 1;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #FF6B35;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8B5CF6;
+}
+
+/* Leaflet Map Dark Theme */
+.leaflet-container {
+  background: #1a1a1a;
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #1a1a1a;
+  color: #fff;
+  border: 2px solid #FF6B35;
+  border-radius: 8px;
+}
+
+.leaflet-popup-tip {
+  background: #1a1a1a;
+}
+
+/* Spooky Animations */
+@keyframes ghost-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(5deg);
+  }
+}
+
+.ghost-float {
+  animation: ghost-float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-10px);
+  }
+  75% {
+    transform: translateY(-25px) translateX(5px);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s infinite;
+}
+
+/* Custom Range Slider - Halloween Theme */
+.slider-halloween {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.slider-halloween::-webkit-slider-track {
+  background: linear-gradient(to right, #FF6B35 0%, #8B5CF6 50%, #10B981 100%);
+  border-radius: 5px;
+  height: 8px;
+}
+
+.slider-halloween::-moz-range-track {
+  background: linear-gradient(to right, #FF6B35 0%, #8B5CF6 50%, #10B981 100%);
+  border-radius: 5px;
+  height: 8px;
+}
+
+.slider-halloween::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FF6B35;
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.7);
+  transition: all 0.2s ease;
+}
+
+.slider-halloween::-webkit-slider-thumb:hover {
+  background: #8B5CF6;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.9);
+  transform: scale(1.2);
+}
+
+.slider-halloween::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FF6B35;
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.7);
+  transition: all 0.2s ease;
+}
+
+.slider-halloween::-moz-range-thumb:hover {
+  background: #8B5CF6;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.9);
+  transform: scale(1.2);
+}
+
+.slider-halloween:focus {
+  outline: none;
+}
+
+.slider-halloween:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 20px rgba(255, 107, 53, 1);
+}
