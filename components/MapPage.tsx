@@ -44,9 +44,6 @@ export default function MapPage() {
       <Sidebar 
         selectedRange={selectedRange}
         onRangeChange={setSelectedRange}
-        selectedHouses={selectedHouses}
-        onHouseSelect={setSelectedHouses}
-        onOptimizeRoute={() => setShowOptimizedRoute(true)}
         userLocation={userLocation}
       />
       

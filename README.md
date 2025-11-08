@@ -1,202 +1,128 @@
 # 🎃 CandyFinder
 
-**Find the Best Candy Houses with GPS & AI**
+**Find the Best Candy Houses with GPS & Community Ratings**
 
-A Next.js-based Halloween trick-or-treating application that uses real-time GPS mapping, community ratings, and AI route optimization to help you find the best candy spots.
+Halloween trick-or-treating app with real-time GPS mapping, address search, and Google Maps directions.
 
 ---
 
 ## ✨ Features
 
-- 🗺️ **Real-Time GPS Mapping** - Interactive map showing candy houses near you
-- 🤖 **AI Route Optimization** - Smart routing to maximize your candy haul
-- ⭐ **Community Ratings** - See which houses give out the best candy
-- � **Secure & Private** - Built with security-first architecture
-- � **Responsive Design** - Works seamlessly on mobile and desktop
-- 🎨 **Halloween-Themed UI** - Spooky, festive interface with animations
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: Supabase (PostgreSQL)
-- **Maps**: Leaflet
-- **Authentication**: Clerk (Email verification, Social login)
-- **Deployment**: Vercel
-
-## 📦 Quick Start
-
-### 1. Install Dependencies
-
-```bash
-cd CandyFinder
-npm install
-```
-
-### 2. Set Up Supabase
-
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Copy your project URL and anon key
-3. Create a `.env.local` file:
-
-```bash
-cp .env.local.example .env.local
-```
-
-4. Update `.env.local` with your Supabase credentials:
-
-
+- 🗺️ **Interactive Map** - Real-time candy house locations
+- 🔍 **Address Search** - Find any location instantly
+- 🧭 **Google Maps** - Turn-by-turn directions
+- ⭐ **Community Ratings** - Rate houses (1-5 stars)
+- 🔐 **Secure Auth** - Clerk email verification
+- 📍 **GPS Entry** - Add houses via location or manually
+- 📱 **Responsive** - Works on all devices
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### 1. Install
 ```bash
-cd CandyFinder
 npm install
 ```
 
-### 2. Set Up Environment Variables
-```bash
-cp .env.example .env.local
-# Edit .env.local with your credentials
+### 2. Set Up Database
+
+**Run this SQL in [Supabase SQL Editor](https://supabase.com/dashboard)**:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE candy_houses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  clerk_user_id TEXT NOT NULL,
+  user_email TEXT,
+  address TEXT NOT NULL,
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  candy_types TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE ratings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  house_id UUID REFERENCES candy_houses(id) ON DELETE CASCADE,
+  clerk_user_id TEXT NOT NULL,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE VIEW houses_with_ratings AS
+SELECT h.*, COALESCE(AVG(r.rating), 3) as avg_rating, COUNT(r.id) as rating_count
+FROM candy_houses h LEFT JOIN ratings r ON h.id = r.house_id GROUP BY h.id;
+
+CREATE INDEX idx_houses_location ON candy_houses(latitude, longitude);
+ALTER TABLE candy_houses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public access" ON candy_houses FOR ALL USING (true);
+CREATE POLICY "Allow public ratings" ON ratings FOR ALL USING (true);
 ```
 
-Required variables in `.env.local`:
+### 3. Configure Environment
+
+Your `.env.local` is already configured:
 ```env
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
-CLERK_SECRET_KEY=sk_test_your_key_here
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/map
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/map
-
-# Supabase (Database only - Auth handled by Clerk)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+NEXT_PUBLIC_SUPABASE_URL=https://xmczcfvfpjrgdfzeyznv.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 3. Set Up Clerk Authentication
-1. Go to [clerk.com](https://clerk.com) and create a free account
-2. Create a new application "CandyFinder"
-3. Enable email verification in Settings → Email, Phone, Username
-4. Copy your API keys to `.env.local`
-5. (Optional) Configure social logins (Google, GitHub, etc.)
-
-### 4. Set Up Supabase (Database Only)
-1. Go to [supabase.com](https://supabase.com) and create a project
-2. Get your project URL and anon key
-3. Run the database migration in SQL editor: `lib/database/schema.sql`
-4. Update `.env.local` with Supabase credentials
-
-### 5. Start Development Server
+### 4. Run
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000)
+
+Open **http://localhost:3000**
 
 ---
 
-## � Project Structure
+## 📖 Usage
 
-```
-CandyFinder/
-├── app/                    # Next.js 14 App Router
-│   ├── api/               # API routes
-│   ├── map/               # Map page
-│   └── layout.tsx         # Root layout
-├── components/            # React components
-│   ├── Auth/             # Authentication components
-│   ├── UI/               # Reusable UI components
-│   ├── Map/              # Map-related components
-│   └── HomePage.tsx      # Landing page
-├── lib/                   # Utility libraries
-│   ├── supabase/         # Database client
-│   ├── encryption.ts     # Security utilities
-│   └── database/         # SQL schemas
-├── public/               # Static assets
-└── scripts/              # Build & utility scripts
-```
+**Add House**: Click "Add Candy House" button → Choose GPS or manual entry → Fill details → Submit  
+**Edit House**: In sidebar, click Edit icon on your houses → Update candy types/notes → Save  
+**Delete House**: Click Delete icon on your houses → Confirm deletion  
+**Search**: Type address in search bar → Click result → Map flies to location  
+**Directions**: Click house marker → "Get Directions" → Opens Google Maps  
+**Filter**: Toggle "All Houses" or "My Houses" to filter the list  
+**Range**: Adjust slider to show houses within X miles of your location
 
 ---
 
-## 🔐 Security
+## 🛠️ Tech Stack
 
-CandyFinder implements enterprise-grade security:
-
-- **AES-256-GCM Encryption** for sensitive data
-- **Bcrypt** password hashing
-- **Row Level Security (RLS)** in Supabase
-- **Environment variable protection**
-- **Secure session management**
-- **2FA support** via TOTP
-
-For detailed security documentation, see [SECURITY_SUMMARY.md](./SECURITY_SUMMARY.md)
+Next.js 14 • TypeScript • Tailwind CSS • Supabase • Clerk • Leaflet • Google Maps
 
 ---
 
-## 📚 Documentation
+## � Deploy to Vercel
 
-- [SETUP.md](./SETUP.md) - Detailed setup instructions
-- [SECURITY_SUMMARY.md](./SECURITY_SUMMARY.md) - Security architecture
-- [HACKATHON_CHECKLIST.md](./HACKATHON_CHECKLIST.md) - Development checklist
-- [PRESENTATION.md](./PRESENTATION.md) - Hackathon presentation notes
-
----
-
-## 🎯 Hackathon Information
-
-Built for **Halloween Hackathon Fall 2025**
-
-**Features Completed:**
-- ✅ User authentication with secure encryption
-- ✅ Interactive GPS mapping
-- ✅ Real-time candy house tracking
-- ✅ Community rating system
-- ✅ Route optimization
-- ✅ Responsive UI with Halloween theme
-- ✅ Security implementation (encryption, RLS)
-
----
-
-## 🚀 Deployment
-
-### Deploy to Vercel
 ```bash
-npm i -g vercel
-vercel
+git push origin main
 ```
 
-Set environment variables in Vercel dashboard:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_APP_URL`
-- `ENCRYPTION_KEY`
+1. Import repo to [vercel.com](https://vercel.com)
+2. Add environment variables from `.env.local`
+3. Deploy
 
 ---
 
-## 🤝 Contributing
+## 🐛 Troubleshooting
 
-This is a hackathon project. For improvements:
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+**Houses not loading?** Run the SQL schema in Supabase SQL Editor  
+**Modal hidden?** Fixed - z-index is 9999  
+**GPS not working?** Use "Enter Manually" or deploy to HTTPS  
 
 ---
 
-## 📄 License
+## � License
 
-MIT License - see LICENSE file for details
+MIT License
 
 ---
 
-## � Happy Halloween & Happy Trick-or-Treating! 🍬
-
-Built with ❤️ for safer, smarter candy hunting.
+**Happy Trick-or-Treating! 🍬👻**

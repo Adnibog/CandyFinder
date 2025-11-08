@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, MapPin, Star, Home, Navigation, Edit3 } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
 import toast from 'react-hot-toast'
+import { supabase } from '@/lib/supabase/client'
 
 interface AddHouseModalProps {
   isOpen: boolean
@@ -22,20 +23,20 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
   const [gettingLocation, setGettingLocation] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null)
 
-  // Reset state when modal opens or closes
+  // Reset to initial state whenever modal opens
   useEffect(() => {
     if (isOpen) {
-      // Small delay to ensure smooth animation
-      const timer = setTimeout(() => {
-        setStep('choose')
-        setLocationMethod(null)
-        setAddress('')
-        setCandyQuality(3)
-        setNotes('')
-        setCurrentLocation(null)
-        setGettingLocation(false)
-      }, 0)
-      return () => clearTimeout(timer)
+      setStep('choose')
+      setLocationMethod(null)
+      setAddress('')
+      setCandyQuality(3)
+      setNotes('')
+      setCurrentLocation(null)
+      setGettingLocation(false)
+    } else {
+      // Also reset when closing to ensure clean state next time
+      setStep('choose')
+      setLocationMethod(null)
     }
   }, [isOpen])
 
@@ -153,25 +154,32 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
         }
       }
       
-      // Store in localStorage for demo mode
-      const houses = JSON.parse(localStorage.getItem('candy_houses') || '[]')
-      const newHouse = {
-        id: crypto.randomUUID(),
-        address,
-        candyQuality,
-        notes,
-        latitude: lat,
-        longitude: lng,
-        createdAt: new Date().toISOString(),
-        createdBy: user?.emailAddresses[0].emailAddress || user?.id || 'anonymous',
-        createdByName: user?.fullName || user?.firstName || 'Anonymous'
+      // Save to Supabase database
+      const { data, error } = await supabase
+        .from('candy_houses')
+        .insert([
+          {
+            address,
+            candy_types: notes, // Using notes field for candy types
+            notes: `Rating: ${candyQuality} stars`,
+            latitude: lat,
+            longitude: lng,
+            clerk_user_id: user?.id || 'anonymous',
+            user_email: user?.emailAddresses[0]?.emailAddress || null
+          }
+        ])
+        .select()
+      
+      if (error) {
+        console.error('Supabase error:', error)
+        toast.error('Failed to add house to database: ' + error.message)
+        setLoading(false)
+        return
       }
       
-      houses.push(newHouse)
-      localStorage.setItem('candy_houses', JSON.stringify(houses))
-      
-      // Trigger a storage event to update the map immediately
+      // Also trigger a storage event to update the map immediately
       window.dispatchEvent(new Event('storage'))
+      window.dispatchEvent(new CustomEvent('houseAdded', { detail: data[0] }))
       
       toast.success('Candy house added successfully! 🍬 Visible on map now!')
       
@@ -193,7 +201,7 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={(e) => {
         e.stopPropagation()
         if (e.target === e.currentTarget) {
@@ -201,7 +209,7 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
         }
       }}
     >
-      <div className="relative w-full max-w-md bg-halloween-dark border-2 border-halloween-orange rounded-2xl p-6 shadow-2xl z-[101]" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-md bg-halloween-dark border-2 border-halloween-orange rounded-2xl p-6 shadow-2xl z-[10000]" onClick={(e) => e.stopPropagation()}>
         {/* Close Button */}
         <button
           type="button"

@@ -1,166 +1,147 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Filter, Route, Star, MapPin, Candy } from 'lucide-react'
-import HouseCard from './HouseCard'
+import { Filter, Star, MapPin, Edit2, Trash2, Save, X, Candy } from 'lucide-react'
 import { CandyHouse } from '@/lib/types'
+import { supabase } from '@/lib/supabase/client'
+import { useUser } from '@clerk/nextjs'
+import toast from 'react-hot-toast'
 
 interface SidebarProps {
   selectedRange: number
   onRangeChange: (range: number) => void
-  selectedHouses: string[]
-  onHouseSelect: (houseIds: string[]) => void
-  onOptimizeRoute: () => void
   userLocation: [number, number] | null
 }
 
 export default function Sidebar({
   selectedRange,
   onRangeChange,
-  selectedHouses,
-  onHouseSelect,
-  onOptimizeRoute,
   userLocation
 }: SidebarProps) {
+  const { user } = useUser()
   const [houses, setHouses] = useState<CandyHouse[]>([])
-  const [filteredHouses, setFilteredHouses] = useState<CandyHouse[]>([])
-  const [filterType, setFilterType] = useState<'all' | 'top-rated' | 'nearby'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'my-houses'>('all')
+  const [editingHouse, setEditingHouse] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ candy_types: '', notes: '' })
 
-  // Load houses from localStorage and combine with mock data
-  useEffect(() => {
-    const loadHouses = () => {
-      // Load user-added houses from localStorage
-      const storedHouses = localStorage.getItem('candy_houses')
-      const realHouses: any[] = storedHouses ? JSON.parse(storedHouses) : []
+  // Load houses from Supabase
+  const loadHouses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('candy_houses')
+        .select('*')
+        .order('created_at', { ascending: false })
       
-      // Generate mock houses around user's location
-      const mockHouses: CandyHouse[] = []
+      if (error) throw error
       
-      if (userLocation) {
-        const [userLat, userLng] = userLocation
-        
-        // Create houses at different distances
-        const offsets = [
-          { lat: 0.002, lng: 0.002, distance: 0.3 }, // ~0.3 miles
-          { lat: -0.003, lng: 0.004, distance: 0.5 }, // ~0.5 miles
-          { lat: 0.008, lng: -0.006, distance: 1.2 }, // ~1.2 miles
-          { lat: -0.012, lng: 0.009, distance: 1.8 }, // ~1.8 miles
-          { lat: 0.015, lng: 0.012, distance: 2.5 }, // ~2.5 miles
-          { lat: -0.025, lng: -0.020, distance: 4.0 }, // ~4 miles
-          { lat: 0.035, lng: 0.030, distance: 6.0 }, // ~6 miles
-        ]
-        
-        offsets.forEach((offset, index) => {
-          mockHouses.push({
-            id: `house-${index + 1}`,
-            latitude: userLat + offset.lat,
-            longitude: userLng + offset.lng,
-            address: `${100 + index * 50} ${['Spooky Lane', 'Haunted Ave', 'Candy Court', 'Pumpkin St', 'Ghost Rd', 'Witch Way', 'Skeleton Dr'][index]}`,
-            candy_types: [
-              ['Chocolate', 'Gummy Bears'],
-              ['Candy Corn', 'Lollipops'],
-              ['Skittles', 'M&Ms'],
-              ['Snickers', 'Reeses'],
-              ['Twix', 'KitKat'],
-              ['Starburst', 'Jolly Ranchers'],
-              ['Sour Patch', 'Swedish Fish']
-            ][index],
-            notes: [
-              '🎃 Full-size candy bars!',
-              '👻 Amazing decorations!',
-              '🍬 King-size treats',
-              '🦇 Spooky yard display',
-              '💀 Super scary house!',
-              '🕷️ Fun haunted maze',
-              '🎭 Interactive decorations'
-            ][index],
-            is_active: true,
-            user_id: `user${index + 1}`,
-            created_at: new Date().toISOString(),
-            avg_candy_rating: 5 - Math.floor(index / 2),
-            avg_decoration_rating: 5 - Math.floor(index / 3),
-            avg_scariness_rating: Math.min(5, index + 1),
-          })
-        })
-      }
-      
-      // Convert real houses from localStorage to CandyHouse format
-      const convertedRealHouses: CandyHouse[] = realHouses.map((house: any) => ({
+      const converted: CandyHouse[] = (data || []).map((house: any) => ({
         id: house.id,
         latitude: house.latitude,
         longitude: house.longitude,
         address: house.address,
-        candy_types: [],
+        candy_types: house.candy_types ? [house.candy_types] : [],
         notes: house.notes || '',
         is_active: true,
-        user_id: house.createdBy || 'user',
-        created_at: house.createdAt,
-        avg_candy_rating: house.candyQuality || 3,
+        user_id: house.clerk_user_id,
+        user_email: house.user_email,
+        created_at: house.created_at,
+        avg_candy_rating: 3,
         avg_decoration_rating: 3,
         avg_scariness_rating: 3,
       }))
       
-      // Combine mock houses with real houses
-      setHouses([...mockHouses, ...convertedRealHouses])
+      setHouses(converted)
+    } catch (error) {
+      console.error('Error loading houses:', error)
     }
-    
+  }
+
+  useEffect(() => {
     loadHouses()
     
-    // Listen for storage events to update when new houses are added
-    const handleStorageChange = () => {
-      loadHouses()
-    }
-    
-    window.addEventListener('storage', handleStorageChange)
+    const handleHouseAdded = () => loadHouses()
+    window.addEventListener('houseAdded', handleHouseAdded)
+    window.addEventListener('storage', handleHouseAdded)
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('houseAdded', handleHouseAdded)
+      window.removeEventListener('storage', handleHouseAdded)
     }
-  }, [userLocation])
+  }, [])
 
-  // Filter houses based on range and user location
-  useEffect(() => {
-    if (!userLocation) {
-      setFilteredHouses([])
-      return
+  // Delete house
+  const handleDelete = async (houseId: string) => {
+    if (!confirm('Are you sure you want to delete this candy house?')) return
+    
+    try {
+      const { error } = await supabase
+        .from('candy_houses')
+        .delete()
+        .eq('id', houseId)
+      
+      if (error) throw error
+      
+      toast.success('Candy house deleted! 🗑️')
+      loadHouses()
+      window.dispatchEvent(new Event('storage'))
+    } catch (error: any) {
+      toast.error('Failed to delete: ' + error.message)
     }
+  }
 
-    const filtered = houses.filter((house) => {
-      // Calculate distance using Haversine formula
-      const R = 3959 // Earth's radius in miles
-      const dLat = ((house.latitude - userLocation[0]) * Math.PI) / 180
-      const dLon = ((house.longitude - userLocation[1]) * Math.PI) / 180
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((userLocation[0] * Math.PI) / 180) *
-          Math.cos((house.latitude * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2)
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-      const distance = R * c
-
-      return distance <= selectedRange
+  // Start editing
+  const handleEdit = (house: CandyHouse) => {
+    setEditingHouse(house.id)
+    setEditForm({
+      candy_types: house.candy_types[0] || '',
+      notes: house.notes || ''
     })
+  }
 
-    // Apply additional filters
-    let result = filtered
-    if (filterType === 'top-rated') {
-      result = filtered
-        .filter((h) => h.avg_candy_rating && h.avg_candy_rating >= 4)
-        .sort((a, b) => (b.avg_candy_rating || 0) - (a.avg_candy_rating || 0))
-    } else if (filterType === 'nearby') {
-      result = filtered.slice().sort((a, b) => {
-        const distA = calculateDistance(userLocation, [a.latitude, a.longitude])
-        const distB = calculateDistance(userLocation, [b.latitude, b.longitude])
-        return distA - distB
+  // Save edit
+  const handleSave = async (houseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('candy_houses')
+        .update({
+          candy_types: editForm.candy_types,
+          notes: editForm.notes
+        })
+        .eq('id', houseId)
+      
+      if (error) throw error
+      
+      toast.success('Updated successfully! ✅')
+      setEditingHouse(null)
+      loadHouses()
+      window.dispatchEvent(new Event('storage'))
+    } catch (error: any) {
+      toast.error('Failed to update: ' + error.message)
+    }
+  }
+
+  // Filter houses
+  const getFilteredHouses = () => {
+    let filtered = houses
+
+    // Filter by ownership
+    if (filterType === 'my-houses' && user) {
+      filtered = houses.filter(h => h.user_id === user.id)
+    }
+
+    // Filter by range if location available
+    if (userLocation) {
+      filtered = filtered.filter(house => {
+        const distance = calculateDistance(userLocation, [house.latitude, house.longitude])
+        return distance <= selectedRange
       })
     }
 
-    setFilteredHouses(result)
-  }, [houses, selectedRange, userLocation, filterType])
+    return filtered
+  }
 
   const calculateDistance = (from: [number, number], to: [number, number]) => {
-    const R = 3959
+    const R = 3959 // miles
     const dLat = ((to[0] - from[0]) * Math.PI) / 180
     const dLon = ((to[1] - from[1]) * Math.PI) / 180
     const a =
@@ -173,123 +154,182 @@ export default function Sidebar({
     return R * c
   }
 
+  const filteredHouses = getFilteredHouses()
+
   return (
     <div className="w-96 bg-halloween-dark border-r-2 border-halloween-orange overflow-y-auto h-full">
       <div className="p-4 space-y-4">
-        {/* Range Filter with Slider */}
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-halloween-orange flex items-center gap-2">
+            <Candy className="w-6 h-6" />
+            Candy Houses
+          </h2>
+          <span className="text-white bg-halloween-purple px-3 py-1 rounded-full text-sm">
+            {filteredHouses.length}
+          </span>
+        </div>
+
+        {/* Range Slider */}
         <div className="bg-halloween-darker rounded-lg p-4 border border-halloween-purple/30">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-5 h-5 text-halloween-orange" />
-              <h3 className="font-semibold">Search Range</h3>
-            </div>
-            <div className="text-halloween-orange font-bold text-lg">
-              {selectedRange} mi
-            </div>
-          </div>
-          
-          {/* Slider */}
-          <div className="space-y-3">
-            <input
-              type="range"
-              min="0.5"
-              max="10"
-              step="0.5"
-              value={selectedRange}
-              onChange={(e) => onRangeChange(parseFloat(e.target.value))}
-              className="w-full h-2 bg-halloween-dark rounded-lg appearance-none cursor-pointer slider-halloween"
-            />
-            
-            {/* Range Labels */}
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>0.5mi</span>
-              <span>2.5mi</span>
-              <span>5mi</span>
-              <span>7.5mi</span>
-              <span>10mi</span>
-            </div>
-            
-            {/* Quick Select Buttons */}
-            <div className="grid grid-cols-4 gap-2 pt-2">
-              {[1, 2, 5, 10].map((range) => (
-                <button
-                  key={range}
-                  onClick={() => onRangeChange(range)}
-                  className={`py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    selectedRange === range
-                      ? 'bg-halloween-orange text-white'
-                      : 'bg-halloween-dark text-gray-400 hover:bg-halloween-purple/30'
-                  }`}
-                >
-                  {range}mi
-                </button>
-              ))}
-            </div>
-          </div>
+          <label className="block text-white mb-2 font-semibold">
+            Range: {selectedRange} miles
+          </label>
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={selectedRange}
+            onChange={(e) => onRangeChange(Number(e.target.value))}
+            className="w-full h-2 bg-halloween-purple rounded-lg appearance-none cursor-pointer"
+          />
         </div>
 
-        {/* Filter Type */}
-        <div className="flex space-x-2">
-          {['all', 'top-rated', 'nearby'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type as any)}
-              className={`flex-1 py-2 rounded-lg capitalize transition-all ${
-                filterType === type
-                  ? 'bg-halloween-purple text-white'
-                  : 'bg-halloween-darker text-gray-400 hover:bg-halloween-purple/30'
-              }`}
-            >
-              {type.replace('-', ' ')}
-            </button>
-          ))}
-        </div>
-
-        {/* Optimize Route Button */}
-        {selectedHouses.length > 1 && (
+        {/* Filter Tabs */}
+        <div className="flex gap-2">
           <button
-            onClick={onOptimizeRoute}
-            className="w-full py-3 bg-gradient-to-r from-halloween-orange to-halloween-purple text-white font-bold rounded-lg flex items-center justify-center space-x-2 hover:shadow-lg hover:shadow-halloween-orange/50 transition-all"
+            onClick={() => setFilterType('all')}
+            className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
+              filterType === 'all'
+                ? 'bg-halloween-orange text-white'
+                : 'bg-halloween-darker text-gray-400 hover:text-white'
+            }`}
           >
-            <Route className="w-5 h-5" />
-            <span>Optimize Route ({selectedHouses.length} houses)</span>
+            All Houses
           </button>
-        )}
+          <button
+            onClick={() => setFilterType('my-houses')}
+            className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
+              filterType === 'my-houses'
+                ? 'bg-halloween-orange text-white'
+                : 'bg-halloween-darker text-gray-400 hover:text-white'
+            }`}
+          >
+            My Houses
+          </button>
+        </div>
 
-        {/* Houses List */}
+        {/* House List */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold flex items-center space-x-2">
-              <Candy className="w-5 h-5 text-halloween-orange" />
-              <span>Candy Houses ({filteredHouses.length})</span>
-            </h3>
-          </div>
-
           {filteredHouses.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <div className="text-center py-8 text-gray-400">
+              <Candy className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No candy houses found</p>
-              <p className="text-sm mt-1">
-                {!userLocation 
-                  ? 'Enable location to see houses' 
-                  : 'Try increasing your range'}
-              </p>
+              <p className="text-sm mt-1">Add one to get started!</p>
             </div>
           ) : (
-            filteredHouses.map((house) => (
-              <HouseCard
-                key={house.id}
-                house={house}
-                isSelected={selectedHouses.includes(house.id)}
-                onSelect={(id: string) => {
-                  if (selectedHouses.includes(id)) {
-                    onHouseSelect(selectedHouses.filter(h => h !== id))
-                  } else {
-                    onHouseSelect([...selectedHouses, id])
-                  }
-                }}
-              />
-            ))
+            filteredHouses.map((house) => {
+              const isEditing = editingHouse === house.id
+              const isOwner = user && house.user_id === user.id
+
+              return (
+                <div
+                  key={house.id}
+                  className="bg-halloween-darker rounded-lg p-4 border border-halloween-purple/30 hover:border-halloween-orange/50 transition"
+                >
+                  {/* Address */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 text-halloween-orange font-semibold mb-1">
+                        <MapPin className="w-4 h-4" />
+                        <span className="text-sm">{house.address}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-yellow-400">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-4 h-4 ${
+                              star <= house.avg_candy_rating ? 'fill-current' : ''
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions for owner */}
+                    {isOwner && !isEditing && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEdit(house)}
+                          className="p-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded transition"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(house.id)}
+                          className="p-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Editable Fields */}
+                  {isEditing ? (
+                    <div className="space-y-2 mt-3">
+                      <input
+                        type="text"
+                        placeholder="Candy types (e.g., Full-size bars, Chocolate)"
+                        value={editForm.candy_types}
+                        onChange={(e) => setEditForm({ ...editForm, candy_types: e.target.value })}
+                        className="w-full px-3 py-2 bg-halloween-dark border border-halloween-purple rounded text-white text-sm"
+                      />
+                      <textarea
+                        placeholder="Notes or special instructions"
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                        className="w-full px-3 py-2 bg-halloween-dark border border-halloween-purple rounded text-white text-sm resize-none"
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSave(house.id)}
+                          className="flex-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-semibold flex items-center justify-center gap-1"
+                        >
+                          <Save className="w-3 h-3" />
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingHouse(null)}
+                          className="flex-1 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm font-semibold flex items-center justify-center gap-1"
+                        >
+                          <X className="w-3 h-3" />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Candy Types */}
+                      {house.candy_types.length > 0 && house.candy_types[0] && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-400 mb-1">Candy Available:</p>
+                          <p className="text-sm text-white">{house.candy_types[0]}</p>
+                        </div>
+                      )}
+
+                      {/* Notes */}
+                      {house.notes && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-400 mb-1">Notes:</p>
+                          <p className="text-sm text-white">{house.notes}</p>
+                        </div>
+                      )}
+
+                      {/* User Info */}
+                      {house.user_email && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Added by: {house.user_email}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )
+            })
           )}
         </div>
       </div>

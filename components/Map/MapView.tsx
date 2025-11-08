@@ -5,6 +5,10 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { CandyHouse } from '@/lib/types'
+import { supabase } from '@/lib/supabase/client'
+import toast from 'react-hot-toast'
+import MapSearch from './MapSearch'
+import { Navigation } from 'lucide-react'
 
 interface MapViewProps {
   range: number
@@ -68,84 +72,59 @@ function LocationMarker({ position }: { position: [number, number] }) {
 export default function MapView({ range, selectedHouses, showOptimizedRoute, userLocation }: MapViewProps) {
   const [houses, setHouses] = useState<CandyHouse[]>([])
 
+  const handleLocationFound = (lat: number, lng: number, address: string) => {
+    // Map will fly to this location via LocationMarker
+    // You could add a temporary marker here if needed
+    toast.success(`Found: ${address}`)
+  }
+
   useEffect(() => {
-    // Load houses from localStorage
-    const loadHouses = () => {
-      const storedHouses = localStorage.getItem('candy_houses')
-      const realHouses: any[] = storedHouses ? JSON.parse(storedHouses) : []
-      
-      // Generate mock houses around user's location
-      const mockHouses: CandyHouse[] = []
-      
-      if (userLocation) {
-        const [userLat, userLng] = userLocation
+    // Load houses from Supabase database
+    const loadHouses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('candy_houses')
+          .select('*')
         
-        // Create houses at different distances
-        const offsets = [
-          { lat: 0.002, lng: 0.002 },
-          { lat: -0.003, lng: 0.004 },
-          { lat: 0.008, lng: -0.006 },
-          { lat: -0.012, lng: 0.009 },
-          { lat: 0.015, lng: 0.012 },
-          { lat: -0.025, lng: -0.020 },
-          { lat: 0.035, lng: 0.030 },
-        ]
+        if (error) {
+          console.error('Error loading houses from Supabase:', error)
+          // Don't show toast error - fail silently if database not set up yet
+          setHouses([])
+          return
+        }
         
-        offsets.forEach((offset, index) => {
-          mockHouses.push({
-            id: `house-${index + 1}`,
-            latitude: userLat + offset.lat,
-            longitude: userLng + offset.lng,
-            address: `${100 + index * 50} ${['Spooky Lane', 'Haunted Ave', 'Candy Court', 'Pumpkin St', 'Ghost Rd', 'Witch Way', 'Skeleton Dr'][index]}`,
-            candy_types: [
-              ['Chocolate', 'Gummy Bears'],
-              ['Candy Corn', 'Lollipops'],
-              ['Skittles', 'M&Ms'],
-              ['Snickers', 'Reeses'],
-              ['Twix', 'KitKat'],
-              ['Starburst', 'Jolly Ranchers'],
-              ['Sour Patch', 'Swedish Fish']
-            ][index],
-            notes: [
-              '🎃 Full-size candy bars!',
-              '👻 Amazing decorations!',
-              '🍬 King-size treats',
-              '🦇 Spooky yard display!',
-              '💀 Super scary house!',
-              '🕷️ Fun haunted maze',
-              '🎭 Interactive decorations'
-            ][index],
-            is_active: true,
-            user_id: `user${index + 1}`,
-            created_at: new Date().toISOString(),
-            avg_candy_rating: 5 - Math.floor(index / 2),
-            avg_decoration_rating: 5 - Math.floor(index / 3),
-            avg_scariness_rating: Math.min(5, index + 1),
-          })
-        })
+        // Convert Supabase data to CandyHouse format
+        const convertedHouses: CandyHouse[] = (data || []).map((house: any) => ({
+          id: house.id,
+          latitude: house.latitude,
+          longitude: house.longitude,
+          address: house.address,
+          candy_types: house.candy_types ? [house.candy_types] : [],
+          notes: house.notes || '',
+          is_active: true, // All fetched houses are active
+          user_id: house.clerk_user_id || house.user_id,
+          created_at: house.created_at,
+          avg_candy_rating: 3, // Default rating
+          avg_decoration_rating: 3,
+          avg_scariness_rating: 3,
+        }))
+        
+        setHouses(convertedHouses)
+      } catch (error) {
+        console.error('Error loading houses:', error)
+        // Don't show toast error - fail silently
+        setHouses([])
       }
-      
-      // Convert real houses from localStorage to CandyHouse format and combine with mock houses
-      const convertedRealHouses: CandyHouse[] = realHouses.map((house: any) => ({
-        id: house.id,
-        latitude: house.latitude,
-        longitude: house.longitude,
-        address: house.address,
-        candy_types: [], // Real houses don't have candy types yet
-        notes: house.notes || '',
-        is_active: true,
-        user_id: house.createdBy || 'user',
-        created_at: house.createdAt,
-        avg_candy_rating: house.candyQuality || 3,
-        avg_decoration_rating: 3,
-        avg_scariness_rating: 3,
-      }))
-      
-      // Combine mock houses with real houses
-      setHouses([...mockHouses, ...convertedRealHouses])
     }
     
     loadHouses()
+    
+    // Listen for new houses being added
+    const handleHouseAdded = (event: any) => {
+      loadHouses()
+    }
+    
+    window.addEventListener('houseAdded', handleHouseAdded)
     
     // Listen for storage changes to reload houses when new ones are added
     const handleStorageChange = () => {
@@ -155,6 +134,7 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
     window.addEventListener('storage', handleStorageChange)
     
     return () => {
+      window.removeEventListener('houseAdded', handleHouseAdded)
       window.removeEventListener('storage', handleStorageChange)
     }
   }, [userLocation])
@@ -171,18 +151,22 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
     : []
 
   return (
-    <MapContainer
-      center={userLocation}
-      zoom={13}
-      className="h-full w-full"
-      zoomControl={true}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <>
+      {/* Search Bar */}
+      <MapSearch onLocationFound={handleLocationFound} />
       
-      <LocationMarker position={userLocation} />
+      <MapContainer
+        center={userLocation}
+        zoom={13}
+        className="h-full w-full"
+        zoomControl={true}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        <LocationMarker position={userLocation} />
 
       {/* Candy Houses */}
       {houses.map((house) => {
@@ -215,6 +199,13 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
                   {isUserAdded && (
                     <p className="text-xs text-green-600 mt-2 font-semibold">✓ Your Added House</p>
                   )}
+                  <button
+                    onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${house.latitude},${house.longitude}`, '_blank')}
+                    className="w-full mt-3 px-3 py-2 bg-halloween-orange hover:bg-halloween-purple transition-colors rounded text-white text-xs font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Navigation className="w-3 h-3" />
+                    Get Directions
+                  </button>
                 </div>
               </div>
             </Popup>
@@ -233,5 +224,6 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
         />
       )}
     </MapContainer>
+    </>
   )
 }
