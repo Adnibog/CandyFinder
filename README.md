@@ -117,19 +117,53 @@ Open **http://localhost:3000**
 
 ## 🛠️ Tech Stack
 
-Next.js 14 • TypeScript • Tailwind CSS • Supabase • Clerk • Leaflet • Google Maps
+**Frontend:** Next.js 14 • TypeScript • Tailwind CSS • Leaflet Maps  
+**Backend:** Supabase (PostgreSQL) • Clerk Authentication  
+**Deployment:** Vercel (recommended) • GitHub  
+**APIs:** Google Maps Directions • OpenStreetMap Geocoding
 
 ---
 
-## � Deploy to Vercel
+## 🚀 Deploy to Vercel
 
+This app is optimized for **Vercel** deployment (made by Next.js creators).
+
+### Quick Deploy (5 minutes):
+
+1. **Push to GitHub** (already done ✅):
 ```bash
 git push origin main
 ```
 
-1. Import repo to [vercel.com](https://vercel.com)
-2. Add environment variables from `.env.local`
-3. Deploy
+2. **Deploy on Vercel**:
+   - Go to [vercel.com](https://vercel.com)
+   - Click "Sign Up" → Continue with GitHub
+   - Click "Add New..." → "Project"
+   - Import `Adnibog/CandyFinder` repository
+   - Framework: **Next.js** (auto-detected)
+
+3. **Add Environment Variables**:
+   ```
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+   CLERK_SECRET_KEY=sk_test_...
+   NEXT_PUBLIC_SUPABASE_URL=https://xmczcfvfpjrgdfzeyznv.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
+   ```
+
+4. **Click "Deploy"** → Wait 2-3 minutes → Done! 🎉
+
+5. **Update Clerk**:
+   - Go to [dashboard.clerk.com](https://dashboard.clerk.com)
+   - Add your Vercel URL to allowed domains
+
+### Why Vercel?
+- ✅ **Free** for hobby projects
+- ✅ **Auto-deploy** on every git push
+- ✅ **Global CDN** - fast worldwide
+- ✅ **Zero config** - works out of the box
+- ✅ **Built for Next.js** - optimal performance
+
+Your app will be live at: `https://candy-finder-[random].vercel.app`
 
 ---
 
