@@ -21,10 +21,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
 
-// Custom pumpkin marker
+// Custom pumpkin marker for mock houses
 const pumpkinIcon = L.divIcon({
   className: 'custom-marker',
   html: '<div style="font-size: 32px;">🎃</div>',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+})
+
+// Custom candy marker for user-added houses
+const candyIcon = L.divIcon({
+  className: 'custom-marker',
+  html: '<div style="font-size: 32px;">🍬</div>',
   iconSize: [32, 32],
   iconAnchor: [16, 32],
 })
@@ -61,58 +69,94 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
   const [houses, setHouses] = useState<CandyHouse[]>([])
 
   useEffect(() => {
-    // Generate mock houses around user's location
-    const mockHouses: CandyHouse[] = []
-    
-    if (userLocation) {
-      const [userLat, userLng] = userLocation
+    // Load houses from localStorage
+    const loadHouses = () => {
+      const storedHouses = localStorage.getItem('candy_houses')
+      const realHouses: any[] = storedHouses ? JSON.parse(storedHouses) : []
       
-      // Create houses at different distances
-      const offsets = [
-        { lat: 0.002, lng: 0.002 },
-        { lat: -0.003, lng: 0.004 },
-        { lat: 0.008, lng: -0.006 },
-        { lat: -0.012, lng: 0.009 },
-        { lat: 0.015, lng: 0.012 },
-        { lat: -0.025, lng: -0.020 },
-        { lat: 0.035, lng: 0.030 },
-      ]
+      // Generate mock houses around user's location
+      const mockHouses: CandyHouse[] = []
       
-      offsets.forEach((offset, index) => {
-        mockHouses.push({
-          id: `house-${index + 1}`,
-          latitude: userLat + offset.lat,
-          longitude: userLng + offset.lng,
-          address: `${100 + index * 50} ${['Spooky Lane', 'Haunted Ave', 'Candy Court', 'Pumpkin St', 'Ghost Rd', 'Witch Way', 'Skeleton Dr'][index]}`,
-          candy_types: [
-            ['Chocolate', 'Gummy Bears'],
-            ['Candy Corn', 'Lollipops'],
-            ['Skittles', 'M&Ms'],
-            ['Snickers', 'Reeses'],
-            ['Twix', 'KitKat'],
-            ['Starburst', 'Jolly Ranchers'],
-            ['Sour Patch', 'Swedish Fish']
-          ][index],
-          notes: [
-            '🎃 Full-size candy bars!',
-            '👻 Amazing decorations!',
-            '🍬 King-size treats',
-            '🦇 Spooky yard display',
-            '💀 Super scary house!',
-            '🕷️ Fun haunted maze',
-            '🎭 Interactive decorations'
-          ][index],
-          is_active: true,
-          user_id: `user${index + 1}`,
-          created_at: new Date().toISOString(),
-          avg_candy_rating: 5 - Math.floor(index / 2),
-          avg_decoration_rating: 5 - Math.floor(index / 3),
-          avg_scariness_rating: Math.min(5, index + 1),
+      if (userLocation) {
+        const [userLat, userLng] = userLocation
+        
+        // Create houses at different distances
+        const offsets = [
+          { lat: 0.002, lng: 0.002 },
+          { lat: -0.003, lng: 0.004 },
+          { lat: 0.008, lng: -0.006 },
+          { lat: -0.012, lng: 0.009 },
+          { lat: 0.015, lng: 0.012 },
+          { lat: -0.025, lng: -0.020 },
+          { lat: 0.035, lng: 0.030 },
+        ]
+        
+        offsets.forEach((offset, index) => {
+          mockHouses.push({
+            id: `house-${index + 1}`,
+            latitude: userLat + offset.lat,
+            longitude: userLng + offset.lng,
+            address: `${100 + index * 50} ${['Spooky Lane', 'Haunted Ave', 'Candy Court', 'Pumpkin St', 'Ghost Rd', 'Witch Way', 'Skeleton Dr'][index]}`,
+            candy_types: [
+              ['Chocolate', 'Gummy Bears'],
+              ['Candy Corn', 'Lollipops'],
+              ['Skittles', 'M&Ms'],
+              ['Snickers', 'Reeses'],
+              ['Twix', 'KitKat'],
+              ['Starburst', 'Jolly Ranchers'],
+              ['Sour Patch', 'Swedish Fish']
+            ][index],
+            notes: [
+              '🎃 Full-size candy bars!',
+              '👻 Amazing decorations!',
+              '🍬 King-size treats',
+              '🦇 Spooky yard display!',
+              '💀 Super scary house!',
+              '🕷️ Fun haunted maze',
+              '🎭 Interactive decorations'
+            ][index],
+            is_active: true,
+            user_id: `user${index + 1}`,
+            created_at: new Date().toISOString(),
+            avg_candy_rating: 5 - Math.floor(index / 2),
+            avg_decoration_rating: 5 - Math.floor(index / 3),
+            avg_scariness_rating: Math.min(5, index + 1),
+          })
         })
-      })
+      }
+      
+      // Convert real houses from localStorage to CandyHouse format and combine with mock houses
+      const convertedRealHouses: CandyHouse[] = realHouses.map((house: any) => ({
+        id: house.id,
+        latitude: house.latitude,
+        longitude: house.longitude,
+        address: house.address,
+        candy_types: [], // Real houses don't have candy types yet
+        notes: house.notes || '',
+        is_active: true,
+        user_id: house.createdBy || 'user',
+        created_at: house.createdAt,
+        avg_candy_rating: house.candyQuality || 3,
+        avg_decoration_rating: 3,
+        avg_scariness_rating: 3,
+      }))
+      
+      // Combine mock houses with real houses
+      setHouses([...mockHouses, ...convertedRealHouses])
     }
     
-    setHouses(mockHouses)
+    loadHouses()
+    
+    // Listen for storage changes to reload houses when new ones are added
+    const handleStorageChange = () => {
+      loadHouses()
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [userLocation])
 
   // Calculate optimized route
@@ -141,28 +185,42 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
       <LocationMarker position={userLocation} />
 
       {/* Candy Houses */}
-      {houses.map((house) => (
-        <Marker
-          key={house.id}
-          position={[house.latitude, house.longitude]}
-          icon={pumpkinIcon}
-        >
-          <Popup>
-            <div className="min-w-[200px]">
-              <h3 className="font-bold text-halloween-orange mb-2">{house.address}</h3>
-              <div className="space-y-1 text-sm">
-                <p><strong>Candy:</strong> {house.candy_types?.join(', ')}</p>
-                <p><strong>Notes:</strong> {house.notes}</p>
-                <div className="flex justify-between mt-2 pt-2 border-t border-halloween-purple/30">
-                  <span>🍬 {house.avg_candy_rating?.toFixed(1)}</span>
-                  <span>⭐ {house.avg_decoration_rating?.toFixed(1)}</span>
-                  <span>👻 {house.avg_scariness_rating?.toFixed(1)}</span>
+      {houses.map((house) => {
+        // Use pumpkin icon for all houses (both user-added and mock)
+        const markerIcon = pumpkinIcon
+        const isUserAdded = !house.id.startsWith('house-')
+        
+        return (
+          <Marker
+            key={house.id}
+            position={[house.latitude, house.longitude]}
+            icon={markerIcon}
+          >
+            <Popup>
+              <div className="min-w-[200px]">
+                <h3 className="font-bold text-halloween-orange mb-2">
+                  {isUserAdded && '🍬 '}
+                  {house.address}
+                </h3>
+                <div className="space-y-1 text-sm">
+                  {house.candy_types && house.candy_types.length > 0 && (
+                    <p><strong>Candy:</strong> {house.candy_types.join(', ')}</p>
+                  )}
+                  {house.notes && <p><strong>Notes:</strong> {house.notes}</p>}
+                  <div className="flex justify-between mt-2 pt-2 border-t border-halloween-purple/30">
+                    <span>🍬 {house.avg_candy_rating?.toFixed(1)}</span>
+                    {house.avg_decoration_rating && <span>⭐ {house.avg_decoration_rating.toFixed(1)}</span>}
+                    {house.avg_scariness_rating && <span>👻 {house.avg_scariness_rating.toFixed(1)}</span>}
+                  </div>
+                  {isUserAdded && (
+                    <p className="text-xs text-green-600 mt-2 font-semibold">✓ Your Added House</p>
+                  )}
                 </div>
               </div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+            </Popup>
+          </Marker>
+        )
+      })}
 
       {/* Optimized Route */}
       {routeCoordinates.length > 1 && (

@@ -26,61 +26,96 @@ export default function Sidebar({
   const [filteredHouses, setFilteredHouses] = useState<CandyHouse[]>([])
   const [filterType, setFilterType] = useState<'all' | 'top-rated' | 'nearby'>('all')
 
-  // Mock data for demo - replace with actual API call
+  // Load houses from localStorage and combine with mock data
   useEffect(() => {
-    // Simulate fetching houses near user location
-    const mockHouses: CandyHouse[] = []
-    
-    if (userLocation) {
+    const loadHouses = () => {
+      // Load user-added houses from localStorage
+      const storedHouses = localStorage.getItem('candy_houses')
+      const realHouses: any[] = storedHouses ? JSON.parse(storedHouses) : []
+      
       // Generate mock houses around user's location
-      const [userLat, userLng] = userLocation
+      const mockHouses: CandyHouse[] = []
       
-      // Create houses at different distances
-      const offsets = [
-        { lat: 0.002, lng: 0.002, distance: 0.3 }, // ~0.3 miles
-        { lat: -0.003, lng: 0.004, distance: 0.5 }, // ~0.5 miles
-        { lat: 0.008, lng: -0.006, distance: 1.2 }, // ~1.2 miles
-        { lat: -0.012, lng: 0.009, distance: 1.8 }, // ~1.8 miles
-        { lat: 0.015, lng: 0.012, distance: 2.5 }, // ~2.5 miles
-        { lat: -0.025, lng: -0.020, distance: 4.0 }, // ~4 miles
-        { lat: 0.035, lng: 0.030, distance: 6.0 }, // ~6 miles
-      ]
-      
-      offsets.forEach((offset, index) => {
-        mockHouses.push({
-          id: `house-${index + 1}`,
-          latitude: userLat + offset.lat,
-          longitude: userLng + offset.lng,
-          address: `${100 + index * 50} ${['Spooky Lane', 'Haunted Ave', 'Candy Court', 'Pumpkin St', 'Ghost Rd', 'Witch Way', 'Skeleton Dr'][index]}`,
-          candy_types: [
-            ['Chocolate', 'Gummy Bears'],
-            ['Candy Corn', 'Lollipops'],
-            ['Skittles', 'M&Ms'],
-            ['Snickers', 'Reeses'],
-            ['Twix', 'KitKat'],
-            ['Starburst', 'Jolly Ranchers'],
-            ['Sour Patch', 'Swedish Fish']
-          ][index],
-          notes: [
-            '🎃 Full-size candy bars!',
-            '👻 Amazing decorations!',
-            '🍬 King-size treats',
-            '🦇 Spooky yard display',
-            '💀 Super scary house!',
-            '🕷️ Fun haunted maze',
-            '🎭 Interactive decorations'
-          ][index],
-          is_active: true,
-          user_id: `user${index + 1}`,
-          created_at: new Date().toISOString(),
-          avg_candy_rating: 5 - Math.floor(index / 2),
-          avg_decoration_rating: 5 - Math.floor(index / 3),
-          avg_scariness_rating: Math.min(5, index + 1),
+      if (userLocation) {
+        const [userLat, userLng] = userLocation
+        
+        // Create houses at different distances
+        const offsets = [
+          { lat: 0.002, lng: 0.002, distance: 0.3 }, // ~0.3 miles
+          { lat: -0.003, lng: 0.004, distance: 0.5 }, // ~0.5 miles
+          { lat: 0.008, lng: -0.006, distance: 1.2 }, // ~1.2 miles
+          { lat: -0.012, lng: 0.009, distance: 1.8 }, // ~1.8 miles
+          { lat: 0.015, lng: 0.012, distance: 2.5 }, // ~2.5 miles
+          { lat: -0.025, lng: -0.020, distance: 4.0 }, // ~4 miles
+          { lat: 0.035, lng: 0.030, distance: 6.0 }, // ~6 miles
+        ]
+        
+        offsets.forEach((offset, index) => {
+          mockHouses.push({
+            id: `house-${index + 1}`,
+            latitude: userLat + offset.lat,
+            longitude: userLng + offset.lng,
+            address: `${100 + index * 50} ${['Spooky Lane', 'Haunted Ave', 'Candy Court', 'Pumpkin St', 'Ghost Rd', 'Witch Way', 'Skeleton Dr'][index]}`,
+            candy_types: [
+              ['Chocolate', 'Gummy Bears'],
+              ['Candy Corn', 'Lollipops'],
+              ['Skittles', 'M&Ms'],
+              ['Snickers', 'Reeses'],
+              ['Twix', 'KitKat'],
+              ['Starburst', 'Jolly Ranchers'],
+              ['Sour Patch', 'Swedish Fish']
+            ][index],
+            notes: [
+              '🎃 Full-size candy bars!',
+              '👻 Amazing decorations!',
+              '🍬 King-size treats',
+              '🦇 Spooky yard display',
+              '💀 Super scary house!',
+              '🕷️ Fun haunted maze',
+              '🎭 Interactive decorations'
+            ][index],
+            is_active: true,
+            user_id: `user${index + 1}`,
+            created_at: new Date().toISOString(),
+            avg_candy_rating: 5 - Math.floor(index / 2),
+            avg_decoration_rating: 5 - Math.floor(index / 3),
+            avg_scariness_rating: Math.min(5, index + 1),
+          })
         })
-      })
+      }
+      
+      // Convert real houses from localStorage to CandyHouse format
+      const convertedRealHouses: CandyHouse[] = realHouses.map((house: any) => ({
+        id: house.id,
+        latitude: house.latitude,
+        longitude: house.longitude,
+        address: house.address,
+        candy_types: [],
+        notes: house.notes || '',
+        is_active: true,
+        user_id: house.createdBy || 'user',
+        created_at: house.createdAt,
+        avg_candy_rating: house.candyQuality || 3,
+        avg_decoration_rating: 3,
+        avg_scariness_rating: 3,
+      }))
+      
+      // Combine mock houses with real houses
+      setHouses([...mockHouses, ...convertedRealHouses])
     }
     
-    setHouses(mockHouses)
+    loadHouses()
+    
+    // Listen for storage events to update when new houses are added
+    const handleStorageChange = () => {
+      loadHouses()
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [userLocation])
 
   // Filter houses based on range and user location
