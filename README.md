@@ -11,7 +11,8 @@ Halloween trick-or-treating app with real-time GPS mapping, address search, and 
 - 🗺️ **Interactive Map** - Real-time candy house locations
 - 🔍 **Address Search** - Find any location instantly
 - 🧭 **Google Maps** - Turn-by-turn directions
-- ⭐ **Community Ratings** - Rate houses (1-5 stars)
+- ⭐ **Community Ratings** - Rate candy quality & spooky level (1-5 stars)
+- 🚨 **Report System** - Report fake/invalid addresses
 - 🔐 **Secure Auth** - Clerk email verification
 - 📍 **GPS Entry** - Add houses via location or manually
 - 📱 **Responsive** - Works on all devices
@@ -48,20 +49,39 @@ CREATE TABLE ratings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   house_id UUID REFERENCES candy_houses(id) ON DELETE CASCADE,
   clerk_user_id TEXT NOT NULL,
-  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  candy_rating INTEGER CHECK (candy_rating >= 1 AND candy_rating <= 5) NOT NULL,
+  spooky_rating INTEGER CHECK (spooky_rating >= 1 AND spooky_rating <= 5) NOT NULL,
   comment TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(house_id, clerk_user_id)
+);
+
+CREATE TABLE reports (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  house_id UUID REFERENCES candy_houses(id) ON DELETE CASCADE,
+  clerk_user_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  details TEXT,
+  status TEXT DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE VIEW houses_with_ratings AS
-SELECT h.*, COALESCE(AVG(r.rating), 3) as avg_rating, COUNT(r.id) as rating_count
+SELECT h.*, 
+  COALESCE(AVG(r.candy_rating), 0) as avg_candy_rating,
+  COALESCE(AVG(r.spooky_rating), 0) as avg_spooky_rating,
+  COUNT(r.id) as rating_count
 FROM candy_houses h LEFT JOIN ratings r ON h.id = r.house_id GROUP BY h.id;
 
 CREATE INDEX idx_houses_location ON candy_houses(latitude, longitude);
+CREATE INDEX idx_ratings_house ON ratings(house_id);
+CREATE INDEX idx_reports_house ON reports(house_id);
 ALTER TABLE candy_houses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public access" ON candy_houses FOR ALL USING (true);
 CREATE POLICY "Allow public ratings" ON ratings FOR ALL USING (true);
+CREATE POLICY "Allow public reports" ON reports FOR ALL USING (true);
 ```
 
 ### 3. Configure Environment
@@ -83,7 +103,9 @@ Open **http://localhost:3000**
 
 ## 📖 Usage
 
-**Add House**: Click "Add Candy House" button → Choose GPS or manual entry → Fill details → Submit  
+**Add House**: Click "Add Candy House" button → Choose GPS or manual entry → Enter address and notes → Submit  
+**Rate House**: In sidebar, click "Rate House" button → Rate candy quality (1-5 ⭐) → Rate spooky level (1-5 👻) → Add comment (optional) → Submit  
+**Report House**: Click "Report" button → Select reason (Fake Address, etc.) → Add details → Submit  
 **Edit House**: In sidebar, click Edit icon on your houses → Update candy types/notes → Save  
 **Delete House**: Click Delete icon on your houses → Confirm deletion  
 **Search**: Type address in search bar → Click result → Map flies to location  

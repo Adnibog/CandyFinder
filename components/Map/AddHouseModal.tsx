@@ -17,8 +17,6 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
   const [step, setStep] = useState<'choose' | 'form'>('choose')
   const [locationMethod, setLocationMethod] = useState<'current' | 'manual' | null>(null)
   const [address, setAddress] = useState('')
-  const [candyQuality, setCandyQuality] = useState(3)
-  const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [gettingLocation, setGettingLocation] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -29,8 +27,6 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
       setStep('choose')
       setLocationMethod(null)
       setAddress('')
-      setCandyQuality(3)
-      setNotes('')
       setCurrentLocation(null)
       setGettingLocation(false)
     } else {
@@ -154,18 +150,40 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
         }
       }
       
+      // Get user's first name - try multiple sources
+      let userName = 'User'
+      if (user) {
+        // Try firstName from Clerk
+        if (user.firstName) {
+          userName = user.firstName
+        }
+        // Try extracting from fullName
+        else if (user.fullName) {
+          userName = user.fullName.split(' ')[0]
+        }
+        // Try username
+        else if (user.username) {
+          userName = user.username
+        }
+        // Last resort: extract from email
+        else if (user.emailAddresses?.[0]?.emailAddress) {
+          userName = user.emailAddresses[0].emailAddress.split('@')[0]
+        }
+      }
+      
       // Save to Supabase database
       const { data, error } = await supabase
         .from('candy_houses')
         .insert([
           {
             address,
-            candy_types: notes, // Using notes field for candy types
-            notes: `Rating: ${candyQuality} stars`,
+            candy_types: null,
+            notes: null,
             latitude: lat,
             longitude: lng,
             clerk_user_id: user?.id || 'anonymous',
-            user_email: user?.emailAddresses[0]?.emailAddress || null
+            user_email: user?.emailAddresses[0]?.emailAddress || null,
+            user_name: userName
           }
         ])
         .select()
@@ -185,8 +203,6 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
       
       // Reset form
       setAddress('')
-      setCandyQuality(3)
-      setNotes('')
       setCurrentLocation(null)
       setStep('choose')
       onClose()
@@ -336,39 +352,6 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Candy Quality: {candyQuality} / 5 {['😞', '😐', '🙂', '😊', '🤩'][candyQuality - 1]}
-            </label>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <button
-                  key={rating}
-                  type="button"
-                  onClick={() => setCandyQuality(rating)}
-                  className={`flex-1 py-2 rounded-lg border-2 transition-all ${
-                    candyQuality >= rating
-                      ? 'bg-halloween-orange border-halloween-orange text-white'
-                      : 'bg-halloween-dark border-gray-600 text-gray-400 hover:border-halloween-orange'
-                  }`}
-                >
-                  <Star className={`w-5 h-5 mx-auto ${candyQuality >= rating ? 'fill-current' : ''}`} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Notes (Optional)</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Great full-size candy bars! Ring doorbell twice."
-              rows={3}
-              className="w-full px-4 py-3 bg-halloween-dark border-2 border-gray-600 rounded-lg focus:border-halloween-orange focus:outline-none text-white placeholder-gray-500 resize-none"
-            />
-          </div>
-
           {/* Submit Button */}
           <button
             type="submit"
@@ -376,7 +359,7 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
             className={`w-full py-3 rounded-lg font-bold text-white transition-all ${
               loading || !address
                 ? 'bg-gray-600 cursor-not-allowed'
-                : 'bg-gradient-to-r from-halloween-orange to-halloween-purple hover:shadow-lg hover:shadow-halloween-orange/50'
+                : 'bg-gradient-to-r from-halloween-orange to-halloween-purple hover:shadow-lg hover:shadow-halloween/50'
             }`}
           >
             {loading ? 'Adding House...' : 'Add Candy House 🍬'}

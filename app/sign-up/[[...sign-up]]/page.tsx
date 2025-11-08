@@ -11,7 +11,7 @@ export default function SignUpPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-halloween-darker">
         <div className="text-center">
-          <div className="text-8xl mb-6 animate-spin">�</div>
+           <div className="text-8xl mb-6 animate-spin">🍬</div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-400 to-purple-400 bg-clip-text text-transparent">
             Welcome to CandyFinder
           </h1>

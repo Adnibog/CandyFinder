@@ -7,10 +7,14 @@ export interface CandyHouse {
   notes: string
   is_active: boolean
   user_id: string
+  user_email?: string
+  user_name?: string
   created_at: string
   avg_candy_rating?: number
   avg_decoration_rating?: number
   avg_scariness_rating?: number
+  avg_overall_rating?: number
+  rating_count?: number
 }
 
 export interface Rating {

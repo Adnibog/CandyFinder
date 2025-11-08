@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Filter, Star, MapPin, Edit2, Trash2, Save, X, Candy } from 'lucide-react'
+import { Filter, Star, MapPin, Edit2, Trash2, Save, X, Candy, Ghost, Flag } from 'lucide-react'
 import { CandyHouse } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { useUser } from '@clerk/nextjs'
 import toast from 'react-hot-toast'
+import RatingModal from '../Map/RatingModal'
+import ReportModal from '../Map/ReportModal'
 
 interface SidebarProps {
   selectedRange: number
@@ -23,32 +25,71 @@ export default function Sidebar({
   const [filterType, setFilterType] = useState<'all' | 'my-houses'>('all')
   const [editingHouse, setEditingHouse] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ candy_types: '', notes: '' })
+  const [ratingModalOpen, setRatingModalOpen] = useState(false)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [selectedHouse, setSelectedHouse] = useState<{ id: string; address: string } | null>(null)
 
-  // Load houses from Supabase
+  // Load houses from Supabase with ratings
   const loadHouses = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch houses with their ratings
+      const { data: housesData, error: housesError } = await supabase
         .from('candy_houses')
         .select('*')
         .order('created_at', { ascending: false })
       
-      if (error) throw error
+      if (housesError) throw housesError
       
-      const converted: CandyHouse[] = (data || []).map((house: any) => ({
-        id: house.id,
-        latitude: house.latitude,
-        longitude: house.longitude,
-        address: house.address,
-        candy_types: house.candy_types ? [house.candy_types] : [],
-        notes: house.notes || '',
-        is_active: true,
-        user_id: house.clerk_user_id,
-        user_email: house.user_email,
-        created_at: house.created_at,
-        avg_candy_rating: 3,
-        avg_decoration_rating: 3,
-        avg_scariness_rating: 3,
-      }))
+      // Fetch ratings for all houses
+      const { data: ratingsData, error: ratingsError } = await supabase
+        .from('ratings')
+        .select('house_id, candy_rating, spooky_rating, overall_rating')
+      
+      if (ratingsError) console.error('Error loading ratings:', ratingsError)
+      
+      // Calculate average ratings for each house
+      const ratingsByHouse = (ratingsData || []).reduce((acc: any, rating: any) => {
+        if (!acc[rating.house_id]) {
+          acc[rating.house_id] = { candyRatings: [], spookyRatings: [], overallRatings: [] }
+        }
+        acc[rating.house_id].candyRatings.push(rating.candy_rating)
+        acc[rating.house_id].spookyRatings.push(rating.spooky_rating)
+        acc[rating.house_id].overallRatings.push(rating.overall_rating)
+        return acc
+      }, {})
+      
+      const converted: CandyHouse[] = (housesData || []).map((house: any) => {
+        const ratings = ratingsByHouse[house.id]
+        const candyAvg = ratings 
+          ? ratings.candyRatings.reduce((a: number, b: number) => a + b, 0) / ratings.candyRatings.length
+          : 0
+        const spookyAvg = ratings
+          ? ratings.spookyRatings.reduce((a: number, b: number) => a + b, 0) / ratings.spookyRatings.length
+          : 0
+        const overallAvg = ratings
+          ? ratings.overallRatings.reduce((a: number, b: number) => a + b, 0) / ratings.overallRatings.length
+          : 0
+        const ratingCount = ratings ? ratings.candyRatings.length : 0
+        
+        return {
+          id: house.id,
+          latitude: house.latitude,
+          longitude: house.longitude,
+          address: house.address,
+          candy_types: house.candy_types ? [house.candy_types] : [],
+          notes: house.notes || '',
+          is_active: true,
+          user_id: house.clerk_user_id,
+          user_email: house.user_email,
+          user_name: house.user_name,
+          created_at: house.created_at,
+          avg_candy_rating: candyAvg,
+          avg_decoration_rating: spookyAvg,
+          avg_scariness_rating: spookyAvg,
+          avg_overall_rating: overallAvg,
+          rating_count: ratingCount,
+        }
+      })
       
       setHouses(converted)
     } catch (error) {
@@ -134,6 +175,13 @@ export default function Sidebar({
       filtered = filtered.filter(house => {
         const distance = calculateDistance(userLocation, [house.latitude, house.longitude])
         return distance <= selectedRange
+      })
+      
+      // Sort by distance (nearest first)
+      filtered = filtered.sort((a, b) => {
+        const distA = calculateDistance(userLocation, [a.latitude, a.longitude])
+        const distB = calculateDistance(userLocation, [b.latitude, b.longitude])
+        return distA - distB
       })
     }
 
@@ -221,6 +269,9 @@ export default function Sidebar({
             filteredHouses.map((house) => {
               const isEditing = editingHouse === house.id
               const isOwner = user && house.user_id === user.id
+              const distance = userLocation 
+                ? calculateDistance(userLocation, [house.latitude, house.longitude])
+                : null
 
               return (
                 <div
@@ -234,15 +285,84 @@ export default function Sidebar({
                         <MapPin className="w-4 h-4" />
                         <span className="text-sm">{house.address}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-yellow-400">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 ${
-                              star <= house.avg_candy_rating ? 'fill-current' : ''
-                            }`}
-                          />
-                        ))}
+                      
+                      {/* Distance Badge */}
+                      {distance !== null && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <span className="text-xs bg-halloween-purple/20 text-halloween-purple px-2 py-1 rounded-full">
+                            📍 {distance < 0.1 ? '< 0.1' : distance.toFixed(1)} mi away
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Rating Display */}
+                      <div className="space-y-1 mt-2">
+                        {/* Candy Rating */}
+                        <div className="flex items-center gap-2">
+                          <Candy className="w-3 h-3 text-halloween-orange" />
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-3 h-3 ${
+                                  star <= (house.avg_candy_rating || 0) 
+                                    ? 'fill-halloween-orange text-halloween-orange' 
+                                    : 'text-gray-600'
+                                }`}
+                              />
+                            ))}
+                            <span className="text-xs text-gray-400 ml-1">
+                              {house.avg_candy_rating && house.avg_candy_rating > 0 ? house.avg_candy_rating.toFixed(1) : 'No ratings'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Spooky Rating */}
+                        <div className="flex items-center gap-2">
+                          <Ghost className="w-3 h-3 text-halloween-purple" />
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-3 h-3 ${
+                                  star <= (house.avg_decoration_rating || 0)
+                                    ? 'fill-halloween-purple text-halloween-purple'
+                                    : 'text-gray-600'
+                                }`}
+                              />
+                            ))}
+                            <span className="text-xs text-gray-400 ml-1">
+                              {house.avg_decoration_rating && house.avg_decoration_rating > 0 ? house.avg_decoration_rating.toFixed(1) : 'No ratings'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Overall Rating */}
+                        <div className="flex items-center gap-2">
+                          <Star className="w-3 h-3 text-yellow-400" />
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-3 h-3 ${
+                                  star <= (house.avg_overall_rating || 0)
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-600'
+                                }`}
+                              />
+                            ))}
+                            <span className="text-xs text-gray-400 ml-1">
+                              {house.avg_overall_rating && house.avg_overall_rating > 0 ? house.avg_overall_rating.toFixed(1) : 'No ratings'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Rating Count */}
+                        {(house.rating_count || 0) > 0 && (
+                          <p className="text-xs text-gray-500">
+                            {house.rating_count} {house.rating_count === 1 ? 'review' : 'reviews'}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -311,19 +431,38 @@ export default function Sidebar({
                         </div>
                       )}
 
-                      {/* Notes */}
-                      {house.notes && (
-                        <div className="mt-2">
-                          <p className="text-xs text-gray-400 mb-1">Notes:</p>
-                          <p className="text-sm text-white">{house.notes}</p>
-                        </div>
-                      )}
-
                       {/* User Info */}
-                      {house.user_email && (
+                      {(house.user_name || house.user_email) && (
                         <p className="text-xs text-gray-500 mt-2">
-                          Added by: {house.user_email}
+                          Added by: {house.user_name || house.user_email}
                         </p>
+                      )}
+                      
+                      {/* Rating and Report Buttons - Only show for other users' houses */}
+                      {!isOwner && (
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => {
+                              setSelectedHouse({ id: house.id, address: house.address })
+                              setRatingModalOpen(true)
+                            }}
+                            className="flex-1 px-3 py-2 bg-halloween-orange/20 hover:bg-halloween-orange/30 text-halloween-orange rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                          >
+                            <Star className="w-3 h-3" />
+                            Rate House
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedHouse({ id: house.id, address: house.address })
+                              setReportModalOpen(true)
+                            }}
+                            className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                            title="Report fake address"
+                          >
+                            <Flag className="w-3 h-3" />
+                            Report
+                          </button>
+                        </div>
                       )}
                     </>
                   )}
@@ -333,6 +472,33 @@ export default function Sidebar({
           )}
         </div>
       </div>
+      
+      {/* Modals */}
+      {selectedHouse && (
+        <>
+          <RatingModal
+            isOpen={ratingModalOpen}
+            onClose={() => {
+              setRatingModalOpen(false)
+              setSelectedHouse(null)
+            }}
+            houseId={selectedHouse.id}
+            houseAddress={selectedHouse.address}
+            onRatingSubmitted={() => {
+              loadHouses()
+            }}
+          />
+          <ReportModal
+            isOpen={reportModalOpen}
+            onClose={() => {
+              setReportModalOpen(false)
+              setSelectedHouse(null)
+            }}
+            houseId={selectedHouse.id}
+            houseAddress={selectedHouse.address}
+          />
+        </>
+      )}
     </div>
   )
 }

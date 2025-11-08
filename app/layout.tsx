@@ -7,7 +7,7 @@ import { Providers } from '@/components/providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: '🍬 CandyFinder - Find the Best Halloween Candy Houses',
+  title: '🍬 CandyFinder',
   description: 'GPS-powered Halloween trick-or-treating map with community ratings and AI route optimization',
 }
 

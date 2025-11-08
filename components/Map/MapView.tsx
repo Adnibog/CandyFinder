@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import MapSearch from './MapSearch'
 import { Navigation } from 'lucide-react'
+import { useUser } from '@clerk/nextjs'
 
 interface MapViewProps {
   range: number
@@ -71,6 +72,7 @@ function LocationMarker({ position }: { position: [number, number] }) {
 
 export default function MapView({ range, selectedHouses, showOptimizedRoute, userLocation }: MapViewProps) {
   const [houses, setHouses] = useState<CandyHouse[]>([])
+  const { user } = useUser()
 
   const handleLocationFound = (lat: number, lng: number, address: string) => {
     // Map will fly to this location via LocationMarker
@@ -79,7 +81,7 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
   }
 
   useEffect(() => {
-    // Load houses from Supabase database
+    // Load houses from Supabase database with ratings
     const loadHouses = async () => {
       try {
         const { data, error } = await supabase
@@ -88,31 +90,65 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
         
         if (error) {
           console.error('Error loading houses from Supabase:', error)
-          // Don't show toast error - fail silently if database not set up yet
           setHouses([])
           return
         }
         
+        // Fetch ratings for all houses
+        const { data: ratingsData, error: ratingsError } = await supabase
+          .from('ratings')
+          .select('house_id, candy_rating, spooky_rating, overall_rating')
+        
+        if (ratingsError) console.error('Error loading ratings:', ratingsError)
+        
+        // Calculate average ratings for each house
+        const ratingsByHouse = (ratingsData || []).reduce((acc: any, rating: any) => {
+          if (!acc[rating.house_id]) {
+            acc[rating.house_id] = { candyRatings: [], spookyRatings: [], overallRatings: [] }
+          }
+          acc[rating.house_id].candyRatings.push(rating.candy_rating)
+          acc[rating.house_id].spookyRatings.push(rating.spooky_rating)
+          acc[rating.house_id].overallRatings.push(rating.overall_rating)
+          return acc
+        }, {})
+        
         // Convert Supabase data to CandyHouse format
-        const convertedHouses: CandyHouse[] = (data || []).map((house: any) => ({
-          id: house.id,
-          latitude: house.latitude,
-          longitude: house.longitude,
-          address: house.address,
-          candy_types: house.candy_types ? [house.candy_types] : [],
-          notes: house.notes || '',
-          is_active: true, // All fetched houses are active
-          user_id: house.clerk_user_id || house.user_id,
-          created_at: house.created_at,
-          avg_candy_rating: 3, // Default rating
-          avg_decoration_rating: 3,
-          avg_scariness_rating: 3,
-        }))
+        const convertedHouses: CandyHouse[] = (data || []).map((house: any) => {
+          const ratings = ratingsByHouse[house.id]
+          const candyAvg = ratings 
+            ? ratings.candyRatings.reduce((a: number, b: number) => a + b, 0) / ratings.candyRatings.length
+            : 0
+          const spookyAvg = ratings
+            ? ratings.spookyRatings.reduce((a: number, b: number) => a + b, 0) / ratings.spookyRatings.length
+            : 0
+          const overallAvg = ratings
+            ? ratings.overallRatings.reduce((a: number, b: number) => a + b, 0) / ratings.overallRatings.length
+            : 0
+          const ratingCount = ratings ? ratings.candyRatings.length : 0
+          
+          return {
+            id: house.id,
+            latitude: house.latitude,
+            longitude: house.longitude,
+            address: house.address,
+            candy_types: house.candy_types ? [house.candy_types] : [],
+            notes: house.notes || '',
+            is_active: true,
+            user_id: house.clerk_user_id || house.user_id,
+            user_name: house.user_name,
+            user_email: house.user_email,
+            created_at: house.created_at,
+            avg_candy_rating: candyAvg,
+            avg_decoration_rating: spookyAvg,
+            avg_scariness_rating: spookyAvg,
+            avg_overall_rating: overallAvg,
+            rating_count: ratingCount,
+          }
+        })
         
         setHouses(convertedHouses)
       } catch (error) {
         console.error('Error loading houses:', error)
-        // Don't show toast error - fail silently
         setHouses([])
       }
     }
@@ -172,7 +208,7 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
       {houses.map((house) => {
         // Use pumpkin icon for all houses (both user-added and mock)
         const markerIcon = pumpkinIcon
-        const isUserAdded = !house.id.startsWith('house-')
+        const isOwner = user && house.user_id === user.id
         
         return (
           <Marker
@@ -183,20 +219,54 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
             <Popup>
               <div className="min-w-[200px]">
                 <h3 className="font-bold text-halloween-orange mb-2">
-                  {isUserAdded && '🍬 '}
-                  {house.address}
+                  🍬 {house.address}
                 </h3>
                 <div className="space-y-1 text-sm">
-                  {house.candy_types && house.candy_types.length > 0 && (
+                  {house.candy_types && house.candy_types.length > 0 && house.candy_types[0] && (
                     <p><strong>Candy:</strong> {house.candy_types.join(', ')}</p>
                   )}
-                  {house.notes && <p><strong>Notes:</strong> {house.notes}</p>}
-                  <div className="flex justify-between mt-2 pt-2 border-t border-halloween-purple/30">
-                    <span>🍬 {house.avg_candy_rating?.toFixed(1)}</span>
-                    {house.avg_decoration_rating && <span>⭐ {house.avg_decoration_rating.toFixed(1)}</span>}
-                    {house.avg_scariness_rating && <span>👻 {house.avg_scariness_rating.toFixed(1)}</span>}
+                  
+                  {/* Ratings Display */}
+                  <div className="mt-2 pt-2 border-t border-halloween-purple/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs">🍬 Candy:</span>
+                      <span className="font-semibold">
+                        {house.avg_candy_rating && house.avg_candy_rating > 0 
+                          ? `${house.avg_candy_rating.toFixed(1)}★` 
+                          : 'No ratings'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs">👻 Spooky:</span>
+                      <span className="font-semibold">
+                        {house.avg_decoration_rating && house.avg_decoration_rating > 0
+                          ? `${house.avg_decoration_rating.toFixed(1)}★`
+                          : 'No ratings'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs">⭐ Overall:</span>
+                      <span className="font-semibold text-yellow-500">
+                        {house.avg_overall_rating && house.avg_overall_rating > 0
+                          ? `${house.avg_overall_rating.toFixed(1)}★`
+                          : 'No ratings'}
+                      </span>
+                    </div>
+                    {(house.rating_count || 0) > 0 && (
+                      <p className="text-xs text-gray-600 italic">
+                        Based on {house.rating_count} {house.rating_count === 1 ? 'review' : 'reviews'}
+                      </p>
+                    )}
                   </div>
-                  {isUserAdded && (
+                  
+                  {/* User Info */}
+                  {(house.user_name || house.user_email) && (
+                    <p className="text-xs text-gray-600 mt-2">
+                      Added by: {house.user_name || house.user_email}
+                    </p>
+                  )}
+                  
+                  {isOwner && (
                     <p className="text-xs text-green-600 mt-2 font-semibold">✓ Your Added House</p>
                   )}
                   <button
