@@ -1,12 +1,15 @@
-'use client'
-
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
 import Header from '@/components/UI/Header'
-import { AuthProvider } from '@/lib/auth-context'
+import { Providers } from '@/components/providers'
 
 const inter = Inter({ subsets: ['latin'] })
+
+export const metadata = {
+  title: '🍬 CandyFinder - Find the Best Halloween Candy Houses',
+  description: 'GPS-powered Halloween trick-or-treating map with community ratings and AI route optimization',
+}
 
 export default function RootLayout({
   children,
@@ -14,9 +17,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-halloween-darker text-white`}>
-        <AuthProvider>
+    <Providers>
+      <html lang="en">
+        <body className={`${inter.className} bg-halloween-darker text-white`}>
           <Header />
           <main className="min-h-screen">
             {children}
@@ -31,8 +34,8 @@ export default function RootLayout({
               },
             }}
           />
-        </AuthProvider>
-      </body>
-    </html>
+        </body>
+      </html>
+    </Providers>
   )
 }

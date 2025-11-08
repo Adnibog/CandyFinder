@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, MapPin, Star, Home, Navigation, Edit3 } from 'lucide-react'
+import { useUser } from '@clerk/nextjs'
 import toast from 'react-hot-toast'
 
 interface AddHouseModalProps {
@@ -11,6 +12,7 @@ interface AddHouseModalProps {
 }
 
 export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHouseModalProps) {
+  const { user } = useUser()
   const [step, setStep] = useState<'choose' | 'form'>('choose')
   const [locationMethod, setLocationMethod] = useState<'current' | 'manual' | null>(null)
   const [address, setAddress] = useState('')
@@ -23,14 +25,17 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
   // Reset state when modal opens or closes
   useEffect(() => {
     if (isOpen) {
-      // Ensure we start at 'choose' step when modal opens
-      setStep('choose')
-      setLocationMethod(null)
-      setAddress('')
-      setCandyQuality(3)
-      setNotes('')
-      setCurrentLocation(null)
-      setGettingLocation(false)
+      // Small delay to ensure smooth animation
+      const timer = setTimeout(() => {
+        setStep('choose')
+        setLocationMethod(null)
+        setAddress('')
+        setCandyQuality(3)
+        setNotes('')
+        setCurrentLocation(null)
+        setGettingLocation(false)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [isOpen])
 
@@ -158,7 +163,8 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
         latitude: lat,
         longitude: lng,
         createdAt: new Date().toISOString(),
-        createdBy: localStorage.getItem('demo_user') ? JSON.parse(localStorage.getItem('demo_user')!).email : 'anonymous'
+        createdBy: user?.emailAddresses[0].emailAddress || user?.id || 'anonymous',
+        createdByName: user?.fullName || user?.firstName || 'Anonymous'
       }
       
       houses.push(newHouse)

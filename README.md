@@ -23,8 +23,7 @@ A Next.js-based Halloween trick-or-treating application that uses real-time GPS 
 - **Styling**: Tailwind CSS
 - **Database**: Supabase (PostgreSQL)
 - **Maps**: Leaflet
-- **Authentication**: Supabase Auth
-- **Encryption**: Node.js Crypto (AES-256-GCM)
+- **Authentication**: Clerk (Email verification, Social login)
 - **Deployment**: Vercel
 
 ## 📦 Quick Start
@@ -63,23 +62,38 @@ npm install
 ### 2. Set Up Environment Variables
 ```bash
 cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
+# Edit .env.local with your credentials
 ```
 
 Required variables in `.env.local`:
 ```env
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+CLERK_SECRET_KEY=sk_test_your_key_here
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/map
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/map
+
+# Supabase (Database only - Auth handled by Clerk)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-ENCRYPTION_KEY=your-generated-encryption-key
 ```
 
-### 3. Run Database Migrations
-Execute the SQL files in your Supabase SQL editor:
-1. `lib/database/schema.sql` - Creates tables
-2. `lib/database/auth-schema.sql` - Sets up authentication
+### 3. Set Up Clerk Authentication
+1. Go to [clerk.com](https://clerk.com) and create a free account
+2. Create a new application "CandyFinder"
+3. Enable email verification in Settings → Email, Phone, Username
+4. Copy your API keys to `.env.local`
+5. (Optional) Configure social logins (Google, GitHub, etc.)
 
-### 4. Start Development Server
+### 4. Set Up Supabase (Database Only)
+1. Go to [supabase.com](https://supabase.com) and create a project
+2. Get your project URL and anon key
+3. Run the database migration in SQL editor: `lib/database/schema.sql`
+4. Update `.env.local` with Supabase credentials
+
+### 5. Start Development Server
 ```bash
 npm run dev
 ```

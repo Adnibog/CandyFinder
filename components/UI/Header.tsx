@@ -1,23 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { Ghost, Candy, MapPin } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import { useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
-import AuthModal from '@/components/Auth/AuthModal'
-import UserMenu from '@/components/Auth/UserMenu'
+import { useUser, UserButton } from '@clerk/nextjs'
 import AddHouseModal from '@/components/Map/AddHouseModal'
 
 export default function Header() {
-  const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [addHouseModalOpen, setAddHouseModalOpen] = useState(false)
-  const { user } = useAuth()
-
-  const openAuthModal = (mode: 'signin' | 'signup') => {
-    setAuthMode(mode)
-    setAuthModalOpen(true)
-  }
+  const { isSignedIn, user } = useUser()
 
   return (
     <>
@@ -34,7 +25,7 @@ export default function Header() {
 
             {/* Navigation */}
             <nav className="flex items-center space-x-4">
-              {user ? (
+              {isSignedIn ? (
                 <>
                   <Link 
                     href="/map" 
@@ -46,39 +37,50 @@ export default function Header() {
                   
                   <button 
                     className="px-4 py-2 bg-halloween-orange hover:bg-halloween-purple transition-all rounded-lg font-semibold text-white shadow-lg hover:shadow-halloween-orange/50"
-                    onClick={() => setAddHouseModalOpen(true)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setAddHouseModalOpen(true)
+                    }}
+                    type="button"
                   >
                     <span className="hidden md:inline">Add Candy House</span>
                     <span className="md:hidden">Add House</span>
                   </button>
-                  <UserMenu />
+                  
+                  <UserButton 
+                    afterSignOutUrl="/"
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-10 h-10 border-2 border-halloween-orange hover:border-halloween-purple",
+                        userButtonPopoverCard: "bg-halloween-dark border-2 border-halloween-orange",
+                        userButtonPopoverActionButton: "hover:bg-halloween-purple/20 text-white",
+                        userButtonPopoverActionButtonText: "text-white",
+                        userButtonPopoverActionButtonIcon: "text-white",
+                        userButtonPopoverFooter: "hidden",
+                      }
+                    }}
+                  />
                 </>
               ) : (
                 <>
-                  <button 
-                    onClick={() => openAuthModal('signin')}
-                    className="px-4 py-2 text-gray-300 hover:text-halloween-orange transition-colors font-semibold"
-                  >
-                    Sign In
-                  </button>
-                  <button 
-                    onClick={() => openAuthModal('signup')}
-                    className="px-4 py-2 bg-halloween-orange hover:bg-halloween-purple transition-all rounded-lg font-semibold text-white shadow-lg hover:shadow-halloween-orange/50"
-                  >
-                    Sign Up
-                  </button>
+                  <Link href="/sign-in">
+                    <button className="px-4 py-2 text-gray-300 hover:text-halloween-orange transition-colors font-semibold">
+                      Sign In
+                    </button>
+                  </Link>
+                  
+                  <Link href="/sign-up">
+                    <button className="px-4 py-2 bg-halloween-orange hover:bg-halloween-purple transition-all rounded-lg font-semibold text-white shadow-lg hover:shadow-halloween-orange/50">
+                      Sign Up
+                    </button>
+                  </Link>
                 </>
               )}
             </nav>
           </div>
         </div>
       </header>
-
-      <AuthModal 
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authMode}
-      />
 
       <AddHouseModal
         isOpen={addHouseModalOpen}

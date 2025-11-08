@@ -1,25 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
-import { MapPin, Star, Shield, Sparkles, Navigation, Users, Candy, Target, LogOut } from 'lucide-react'
-import AuthModal from '@/components/Auth/AuthModal'
+import { useUser, UserButton } from '@clerk/nextjs'
+import { MapPin, Star, Shield, Sparkles, Navigation, Users, Candy, Target } from 'lucide-react'
 import Link from 'next/link'
-import toast from 'react-hot-toast'
 
 export default function HomePage() {
-  const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
-  const { user, signOut } = useAuth()
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      toast.success('Signed out successfully! 👋')
-    } catch (error) {
-      toast.error('Failed to sign out')
-    }
-  }
+  const { isSignedIn, user } = useUser()
 
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-[#1a0b2e] via-[#2d1b3d] to-[#1a0b2e] text-white">
@@ -42,50 +28,35 @@ export default function HomePage() {
               <span className="text-2xl font-black bg-gradient-to-r from-orange-400 to-purple-400 bg-clip-text text-transparent">CandyFinder</span>
             </div>
             <div className="flex items-center gap-3">
-              {!user ? (
+              {!isSignedIn ? (
                 <>
-                  <button 
-                    type="button"
-                    onClick={(e) => { 
-                      e.preventDefault();
-                      setAuthMode('signin'); 
-                      setAuthModalOpen(true); 
-                    }} 
-                    className="px-5 py-2 text-white hover:text-orange-400 font-semibold transition-colors"
-                  >
-                    Sign In
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={(e) => { 
-                      e.preventDefault();
-                      setAuthMode('signup'); 
-                      setAuthModalOpen(true); 
-                    }} 
-                    className="px-6 py-2 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-orange-500/50 transition-all"
-                  >
-                    Sign Up
-                  </button>
+                  <Link href="/sign-in">
+                    <button className="px-5 py-2 text-white hover:text-orange-400 font-semibold transition-colors">
+                      Sign In
+                    </button>
+                  </Link>
+                  <Link href="/sign-up">
+                    <button className="px-6 py-2 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-orange-500/50 transition-all">
+                      Sign Up
+                    </button>
+                  </Link>
                 </>
               ) : (
                 <>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-300">Welcome, {user.user_metadata?.full_name || user.email}</span>
+                    <span className="text-gray-300">Welcome, {user?.firstName || user?.emailAddresses[0].emailAddress}</span>
                   </div>
                   <Link href="/map" className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-lg font-semibold hover:shadow-lg hover:shadow-orange-500/50 transition-all">
                     Open Map
                   </Link>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleSignOut();
+                  <UserButton 
+                    afterSignOutUrl="/"
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-10 h-10 border-2 border-halloween-orange hover:border-halloween-purple",
+                      }
                     }}
-                    className="px-5 py-2 text-white hover:text-orange-400 font-semibold transition-colors flex items-center gap-2"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
-                  </button>
+                  />
                 </>
               )}
             </div>
@@ -104,33 +75,21 @@ export default function HomePage() {
             Optimize your trick-or-treating route with real-time GPS mapping, community ratings, and AI-powered suggestions.
           </p>
 
-          {!user ? (
+          {!isSignedIn ? (
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              <button 
-                type="button"
-                onClick={(e) => { 
-                  e.preventDefault();
-                  setAuthMode('signup'); 
-                  setAuthModalOpen(true); 
-                }} 
-                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 text-white text-lg font-bold rounded-xl shadow-2xl hover:scale-105 transition-all"
-              >
-                <span className="flex items-center justify-center space-x-2">
-                  <Sparkles className="w-5 h-5" />
-                  <span>Get Started Free</span>
-                </span>
-              </button>
-              <button 
-                type="button"
-                onClick={(e) => { 
-                  e.preventDefault();
-                  setAuthMode('signin'); 
-                  setAuthModalOpen(true); 
-                }} 
-                className="px-8 py-4 bg-white/5 border-2 border-white/20 text-white text-lg font-semibold rounded-xl hover:bg-white/10 hover:border-orange-500 transition-all"
-              >
-                Sign In
-              </button>
+              <Link href="/sign-up">
+                <button className="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 text-white text-lg font-bold rounded-xl shadow-2xl hover:scale-105 transition-all">
+                  <span className="flex items-center justify-center space-x-2">
+                    <Sparkles className="w-5 h-5" />
+                    <span>Get Started Free</span>
+                  </span>
+                </button>
+              </Link>
+              <Link href="/sign-in">
+                <button className="px-8 py-4 bg-white/5 border-2 border-white/20 text-white text-lg font-semibold rounded-xl hover:bg-white/10 hover:border-orange-500 transition-all">
+                  Sign In
+                </button>
+              </Link>
             </div>
           ) : (
             <div className="mb-16">
@@ -186,8 +145,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-
-      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} initialMode={authMode} />
     </div>
   )
 }
