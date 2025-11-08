@@ -18,6 +18,7 @@ export default function MapPage() {
   const [showOptimizedRoute, setShowOptimizedRoute] = useState(false)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [locationGranted, setLocationGranted] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const handleLocationGranted = (lat: number, lng: number) => {
     setUserLocation([lat, lng])
@@ -31,7 +32,7 @@ export default function MapPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden pt-16">
+    <div className="flex flex-col lg:flex-row h-screen overflow-hidden pt-16">
       {/* Location Permission Modal */}
       {!locationGranted && (
         <LocationPermission
@@ -40,15 +41,8 @@ export default function MapPage() {
         />
       )}
 
-      {/* Sidebar */}
-      <Sidebar 
-        selectedRange={selectedRange}
-        onRangeChange={setSelectedRange}
-        userLocation={userLocation}
-      />
-      
-      {/* Map */}
-      <div className="flex-1 relative">
+      {/* Map - Top half on mobile, right side on desktop */}
+      <div className="relative h-1/2 lg:h-auto lg:flex-1 lg:order-2">
         {locationGranted && userLocation && (
           <MapView 
             range={selectedRange}
@@ -59,6 +53,15 @@ export default function MapPage() {
         )}
         {locationGranted && !userLocation && <LoadingSpinner />}
       </div>
+
+      {/* Sidebar - Bottom half on mobile, left side on desktop */}
+      <Sidebar 
+        selectedRange={selectedRange}
+        onRangeChange={setSelectedRange}
+        userLocation={userLocation}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
     </div>
   )
 }

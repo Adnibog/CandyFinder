@@ -50,6 +50,13 @@
   font-family: inherit;
 }
 
+/* Hide zoom controls on mobile */
+@media (max-width: 1023px) {
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+}
+
 .leaflet-popup-content-wrapper {
   background: #1a1a1a;
   color: #fff;

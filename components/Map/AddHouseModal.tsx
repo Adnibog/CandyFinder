@@ -217,7 +217,7 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
 
   return (
     <div 
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm"
       onClick={(e) => {
         e.stopPropagation()
         if (e.target === e.currentTarget) {
@@ -225,7 +225,7 @@ export default function AddHouseModal({ isOpen, onClose, userLocation }: AddHous
         }
       }}
     >
-      <div className="relative w-full max-w-md bg-halloween-dark border-2 border-halloween-orange rounded-2xl p-6 shadow-2xl z-[10000]" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-md bg-halloween-dark border-2 border-halloween-orange rounded-2xl p-4 sm:p-6 shadow-2xl z-[10000] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Close Button */}
         <button
           type="button"

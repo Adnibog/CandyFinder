@@ -13,12 +13,16 @@ interface SidebarProps {
   selectedRange: number
   onRangeChange: (range: number) => void
   userLocation: [number, number] | null
+  isOpen?: boolean
+  onToggle?: () => void
 }
 
 export default function Sidebar({
   selectedRange,
   onRangeChange,
-  userLocation
+  userLocation,
+  isOpen = true,
+  onToggle
 }: SidebarProps) {
   const { user } = useUser()
   const [houses, setHouses] = useState<CandyHouse[]>([])
@@ -205,7 +209,18 @@ export default function Sidebar({
   const filteredHouses = getFilteredHouses()
 
   return (
-    <div className="w-96 bg-halloween-dark border-r-2 border-halloween-orange overflow-y-auto h-full">
+    <>
+      {/* Sidebar */}
+      <div className={`
+        relative lg:relative
+        h-1/2 lg:h-full
+        w-full lg:w-96
+        lg:order-1
+        bg-halloween-dark
+        border-t-2 lg:border-t-0 lg:border-r-2 border-halloween-orange
+        overflow-y-auto
+        z-40
+      `}>
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -472,8 +487,9 @@ export default function Sidebar({
           )}
         </div>
       </div>
+      </div>
       
-      {/* Modals */}
+      {/* Modals - Outside sidebar for proper z-index */}
       {selectedHouse && (
         <>
           <RatingModal
@@ -499,6 +515,6 @@ export default function Sidebar({
           />
         </>
       )}
-    </div>
+    </>
   )
 }

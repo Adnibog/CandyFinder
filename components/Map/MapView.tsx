@@ -72,7 +72,18 @@ function LocationMarker({ position }: { position: [number, number] }) {
 
 export default function MapView({ range, selectedHouses, showOptimizedRoute, userLocation }: MapViewProps) {
   const [houses, setHouses] = useState<CandyHouse[]>([])
+  const [isMobile, setIsMobile] = useState(false)
   const { user } = useUser()
+
+  // Detect if mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024) // lg breakpoint
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const handleLocationFound = (lat: number, lng: number, address: string) => {
     // Map will fly to this location via LocationMarker
@@ -195,7 +206,7 @@ export default function MapView({ range, selectedHouses, showOptimizedRoute, use
         center={userLocation}
         zoom={13}
         className="h-full w-full"
-        zoomControl={true}
+        zoomControl={!isMobile}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

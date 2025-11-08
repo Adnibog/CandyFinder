@@ -13,18 +13,18 @@ export default function Header() {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-halloween-dark/95 backdrop-blur-sm border-b-2 border-halloween-orange">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3 group">
-              <span className="text-4xl animate-pulse">🍬</span>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-purple-400 bg-clip-text text-transparent">
+            <Link href="/" className="flex items-center space-x-2 sm:space-x-3 group">
+              <span className="text-3xl sm:text-4xl animate-pulse">🍬</span>
+              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-400 to-purple-400 bg-clip-text text-transparent">
                 CandyFinder
               </h1>
             </Link>
 
             {/* Navigation */}
-            <nav className="flex items-center space-x-4">
+            <nav className="flex items-center space-x-2 sm:space-x-4">
               {isSignedIn ? (
                 <>
                   <Link 
@@ -36,7 +36,7 @@ export default function Header() {
                   </Link>
                   
                   <button 
-                    className="px-4 py-2 bg-halloween-orange hover:bg-halloween-purple transition-all rounded-lg font-semibold text-white shadow-lg hover:shadow-halloween-orange/50"
+                    className="px-2 sm:px-4 py-2 bg-halloween-orange hover:bg-halloween-purple transition-all rounded-lg font-semibold text-white shadow-lg hover:shadow-halloween-orange/50 text-sm sm:text-base"
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
@@ -44,15 +44,15 @@ export default function Header() {
                     }}
                     type="button"
                   >
-                    <span className="hidden md:inline">Add Candy House</span>
-                    <span className="md:hidden">Add House</span>
+                    <span className="hidden sm:inline">Add Candy House</span>
+                    <span className="sm:hidden">Add</span>
                   </button>
                   
                   <UserButton 
                     afterSignOutUrl="/"
                     appearance={{
                       elements: {
-                        avatarBox: "w-10 h-10 border-2 border-halloween-orange hover:border-halloween-purple",
+                        avatarBox: "w-8 h-8 sm:w-10 sm:h-10 border-2 border-halloween-orange hover:border-halloween-purple",
                         userButtonPopoverCard: "bg-halloween-dark border-2 border-halloween-orange",
                         userButtonPopoverActionButton: "hover:bg-halloween-purple/20 text-white",
                         userButtonPopoverActionButtonText: "text-white",
@@ -65,13 +65,13 @@ export default function Header() {
               ) : (
                 <>
                   <Link href="/sign-in">
-                    <button className="px-4 py-2 text-gray-300 hover:text-halloween-orange transition-colors font-semibold">
+                    <button className="px-3 sm:px-4 py-2 text-gray-300 hover:text-halloween-orange transition-colors font-semibold text-sm sm:text-base">
                       Sign In
                     </button>
                   </Link>
                   
                   <Link href="/sign-up">
-                    <button className="px-4 py-2 bg-halloween-orange hover:bg-halloween-purple transition-all rounded-lg font-semibold text-white shadow-lg hover:shadow-halloween-orange/50">
+                    <button className="px-3 sm:px-4 py-2 bg-halloween-orange hover:bg-halloween-purple transition-all rounded-lg font-semibold text-white shadow-lg hover:shadow-halloween-orange/50 text-sm sm:text-base">
                       Sign Up
                     </button>
                   </Link>
