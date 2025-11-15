@@ -175,7 +175,7 @@ Your app will be live at: `https://candy-finder-[random].vercel.app`
 
 ---
 
-## � License
+## 📄 License
 
 MIT License
 
